@@ -1,0 +1,5 @@
+node_modules/
+data/tracker.db-shm
+data/tracker.db-wal
+.DS_Store
+*.log
