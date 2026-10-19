@@ -127,6 +127,34 @@ function initSchema() {
       FOREIGN KEY (recorded_by_user_id) REFERENCES users(id)
     );
 
+    -- Mentors table (institute staff assigned to specific classes)
+    CREATE TABLE IF NOT EXISTS mentors (
+      id TEXT PRIMARY KEY,
+      institute_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,          -- FK to users (role = 'mentor')
+      display_name TEXT NOT NULL,
+      mobile_number TEXT NOT NULL,
+      account_status TEXT NOT NULL DEFAULT 'active', -- 'active', 'disabled'
+      temp_password_hash TEXT,        -- hashed initial password set by admin
+      created_at TEXT NOT NULL,
+      UNIQUE(user_id),
+      FOREIGN KEY (institute_id) REFERENCES institutes(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    -- Mentor ↔ Class many-to-many assignments
+    CREATE TABLE IF NOT EXISTS mentor_class_assignments (
+      id TEXT PRIMARY KEY,
+      institute_id TEXT NOT NULL,
+      mentor_id TEXT NOT NULL,
+      class_id TEXT NOT NULL,
+      assigned_at TEXT NOT NULL,
+      UNIQUE(mentor_id, class_id),
+      FOREIGN KEY (institute_id) REFERENCES institutes(id),
+      FOREIGN KEY (mentor_id) REFERENCES mentors(id),
+      FOREIGN KEY (class_id) REFERENCES classes(id)
+    );
+
     -- Record Audit Logs (Immutable audit history)
     CREATE TABLE IF NOT EXISTS record_audit_logs (
       id TEXT PRIMARY KEY,

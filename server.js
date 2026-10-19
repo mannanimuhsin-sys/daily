@@ -9,6 +9,7 @@ const { verifyToken } = require('./src/auth');
 const { handleAuthRoutes } = require('./src/routes/authRoutes');
 const { handleParentRoutes } = require('./src/routes/parentRoutes');
 const { handleAdminRoutes } = require('./src/routes/adminRoutes');
+const { handleAdminPeopleRoutes } = require('./src/routes/adminPeopleRoutes');
 const { handleStudentRoutes } = require('./src/routes/studentRoutes');
 const { handleSuperAdminRoutes } = require('./src/routes/superAdminRoutes');
 
@@ -115,6 +116,7 @@ const server = http.createServer((req, res) => {
         }
 
         if (parsedUrl.pathname.startsWith('/api/admin/')) {
+          if (handleAdminPeopleRoutes(req, res, parsedUrl, body)) return;
           if (handleAdminRoutes(req, res, parsedUrl, body)) return;
         }
 

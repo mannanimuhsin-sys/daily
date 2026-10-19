@@ -27,6 +27,7 @@
       </div>
 
       <div class="header-actions">
+        <button type="button" onclick="shareOnWhatsApp()" class="btn-icon" title="Share App via WhatsApp" style="background:#25D366;color:#ffffff;border-color:#25D366;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;">💬</button>
         <button id="themeToggleBtn" class="btn-icon" title="Toggle Dark/Light Mode">🌙</button>
         <div id="userHeaderProfile" class="user-badge" style="display: none;">
           <span id="headerUserName">Parent</span>
@@ -74,6 +75,14 @@
           <button type="button" id="openRegisterModalBtn" class="btn-secondary">Register Institute</button>
         </div>
       </form>
+      <!-- WhatsApp Share Invite Banner -->
+      <div style="margin-top:20px;padding:12px 14px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.25);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#25D366;">📲 WhatsApp App Share</div>
+          <div style="font-size:11.5px;color:var(--text-muted);">Share SALATI link with parents, teachers, and study groups.</div>
+        </div>
+        <button type="button" onclick="shareOnWhatsApp()" class="btn-primary" style="background:#25D366;border-color:#25D366;font-size:12px;padding:7px 14px;border-radius:20px;">💬 Share on WhatsApp</button>
+      </div>
     </section>
 
     <!-- 2. PARENT DASHBOARD VIEW -->
@@ -200,6 +209,8 @@
         <button class="tab-btn" data-admin-tab="records">📝 Daily Records & Corrections</button>
         <button class="tab-btn" data-admin-tab="routines">⚙️ Custom Routines</button>
         <button class="tab-btn" data-admin-tab="classes">🏫 Classes & Students</button>
+        <button class="tab-btn" data-admin-tab="parents">👨‍👧‍👦 Parents</button>
+        <button class="tab-btn" data-admin-tab="mentors">👤 Mentors</button>
         <button class="tab-btn" data-admin-tab="settings">🔒 Settings & Policy</button>
       </div>
 
@@ -369,6 +380,57 @@
                 </tr>
               </thead>
               <tbody id="adminStudentsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+<!-- Admin Tab 5: Parents Management -->
+      <div id="adminParentsTab" style="display: none;">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">👨‍👧‍👦 Parents &amp; Linked Students</h3>
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="btn-secondary" onclick="shareParentInviteWhatsApp()" style="border-color:#25D366;color:#25D366;font-size:12px;">💬 WhatsApp Invite</button>
+              <button class="btn-primary" onclick="openAddParentModal()">+ Add Parent</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <input type="text" id="parentSearchInput" class="form-input" placeholder="Search by name or mobile…" style="flex:1;">
+            <button class="btn-secondary" onclick="loadAdminParents()">🔍 Search</button>
+          </div>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead><tr>
+                <th>Parent Name</th><th>Mobile</th><th>Students Linked</th><th>Status</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="adminParentsTableBody">
+                <tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Click this tab to load parents…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Tab 6: Mentors Management -->
+      <div id="adminMentorsTab" style="display: none;">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">👤 Mentors &amp; Class Assignments</h3>
+            <button class="btn-primary" onclick="openAddMentorModal()">+ Add Mentor</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <input type="text" id="mentorSearchInput" class="form-input" placeholder="Search by name or mobile…" style="flex:1;">
+            <button class="btn-secondary" onclick="loadAdminMentors()">🔍 Search</button>
+          </div>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead><tr>
+                <th>Mentor Name</th><th>Mobile</th><th>Assigned Classes</th><th>Status</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="adminMentorsTableBody">
+                <tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Click this tab to load mentors…</td></tr>
+              </tbody>
             </table>
           </div>
         </div>
@@ -603,5 +665,136 @@
   </div>
 
   <script src="app.js"></script>
+
+  <!-- ══ ADD PARENT MODAL ════════════════════════════════════════════════ -->
+  <div id="addParentModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width:520px;width:96vw;">
+      <div class="modal-header">
+        <h3 class="modal-title">👨‍👧‍👦 Add Parent Account</h3>
+        <button class="btn-icon" onclick="closeAddParentModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Parent Details -->
+        <div style="background:var(--surface-card);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Parent Details</div>
+          <div class="form-group">
+            <label class="form-label">Parent Mobile Number *</label>
+            <div style="display:flex;gap:8px;">
+              <input type="tel" id="addParentMobile" class="form-input" placeholder="e.g. 9447123456" style="flex:1;" oninput="clearParentLookup()">
+              <button type="button" class="btn-secondary" onclick="checkParentMobile()" style="white-space:nowrap;">🔍 Check</button>
+            </div>
+            <div id="parentMobileLookupResult" style="margin-top:6px;font-size:12px;"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Parent Name *</label>
+            <input type="text" id="addParentName" class="form-input" placeholder="e.g. Abdul Rahman">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Initial Password * <small style="font-weight:400;color:var(--text-dim);">(min 6 characters — share securely with parent)</small></label>
+            <input type="password" id="addParentPassword" class="form-input" placeholder="Set initial login password" autocomplete="new-password">
+          </div>
+        </div>
+
+        <!-- Student Entries -->
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">
+          Student Details
+        </div>
+        <div id="studentEntriesContainer"></div>
+        <button type="button" class="btn-secondary" onclick="addStudentEntry()" style="width:100%;margin-top:6px;">+ Add Another Student</button>
+
+        <!-- Existing parent alert (hidden by default) -->
+        <div id="existingParentAlert" style="display:none;margin-top:12px;padding:10px 12px;border-radius:var(--radius-sm);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);font-size:13px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeAddParentModal()">Cancel</button>
+        <button class="btn-primary" onclick="submitAddParent()" id="addParentSubmitBtn">Save Parent</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ VIEW PARENT DETAIL MODAL ════════════════════════════════════════ -->
+  <div id="viewParentModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width:480px;width:96vw;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="viewParentModalTitle">👨‍👧‍👦 Parent Detail</h3>
+        <button class="btn-icon" onclick="closeViewParentModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="viewParentDetailBody" style="font-size:13px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeViewParentModal()">Close</button>
+        <button class="btn-primary" id="addStudentsToExistingBtn" onclick="openAddStudentsToParent()" style="display:none;">+ Add More Students</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ADD MENTOR MODAL ═════════════════════════════════════════════════ -->
+  <div id="addMentorModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width:480px;width:96vw;">
+      <div class="modal-header">
+        <h3 class="modal-title">👤 Add Mentor Account</h3>
+        <button class="btn-icon" onclick="closeAddMentorModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Mentor Mobile Number *</label>
+          <input type="tel" id="addMentorMobile" class="form-input" placeholder="e.g. 9400111333">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mentor Name *</label>
+          <input type="text" id="addMentorName" class="form-input" placeholder="e.g. Usthad Ibrahim">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Initial Password * <small style="font-weight:400;color:var(--text-dim);">(min 6 characters)</small></label>
+          <input type="password" id="addMentorPassword" class="form-input" placeholder="Set initial login password" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Assign Classes * <small style="font-weight:400;color:var(--text-dim);">(select one or more)</small></label>
+          <div id="mentorClassCheckboxList" style="max-height:200px;overflow-y:auto;background:var(--surface-card);padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+            <div style="color:var(--text-dim);font-size:12px;">Loading classes…</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeAddMentorModal()">Cancel</button>
+        <button class="btn-primary" onclick="submitAddMentor()">Save Mentor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ EDIT MENTOR MODAL ════════════════════════════════════════════════ -->
+  <div id="editMentorModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width:480px;width:96vw;">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ Edit Mentor</h3>
+        <button class="btn-icon" onclick="closeEditMentorModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editMentorId">
+        <div class="form-group">
+          <label class="form-label">Mentor Name</label>
+          <input type="text" id="editMentorName" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Account Status</label>
+          <select id="editMentorStatus" class="form-select">
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Assigned Classes <small style="font-weight:400;color:var(--text-dim);">(update selection)</small></label>
+          <div id="editMentorClassList" style="max-height:200px;overflow-y:auto;background:var(--surface-card);padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+            <div style="color:var(--text-dim);font-size:12px;">Loading…</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeEditMentorModal()">Cancel</button>
+        <button class="btn-primary" onclick="submitEditMentor()">Update Mentor</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

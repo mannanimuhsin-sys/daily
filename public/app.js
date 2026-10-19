@@ -511,14 +511,18 @@ async function initAdminDashboard() {
       const tab = btn.getAttribute('data-admin-tab');
       state.admin.activeTab = tab;
 
-      ['adminOverviewTab', 'adminRecordsTab', 'adminRoutinesTab', 'adminClassesTab', 'adminSettingsTab'].forEach(tId => {
-        document.getElementById(tId).style.display = tId === `admin${capitalize(tab)}Tab` ? 'block' : 'none';
+      ['adminOverviewTab', 'adminRecordsTab', 'adminRoutinesTab', 'adminClassesTab',
+       'adminParentsTab', 'adminMentorsTab', 'adminSettingsTab'].forEach(tId => {
+        const el = document.getElementById(tId);
+        if (el) el.style.display = tId === `admin${capitalize(tab)}Tab` ? 'block' : 'none';
       });
 
       if (tab === 'overview') loadAdminOverview();
       else if (tab === 'records') loadAdminRecords();
       else if (tab === 'routines') loadAdminRoutines();
       else if (tab === 'classes') loadAdminClassesAndStudents();
+      else if (tab === 'parents') loadAdminParents();
+      else if (tab === 'mentors') loadAdminMentors();
       else if (tab === 'settings') loadAdminSettings();
     };
   });
@@ -997,5 +1001,537 @@ document.getElementById('registerInstituteForm').addEventListener('submit', asyn
   }
 });
 
+
+// ==========================================
+// 6. PARENTS MANAGEMENT (Admin)
+// ==========================================
+
+// Track existing-parent state during add-parent flow
+let _existingParentId = null;
+
+async function loadAdminParents() {
+  const search = (document.getElementById('parentSearchInput') || {}).value || '';
+  const tbody = document.getElementById('adminParentsTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Loading…</td></tr>';
+
+  try {
+    const res = await api(`/api/admin/parents?search=${encodeURIComponent(search)}`);
+    tbody.innerHTML = '';
+
+    if (!res.parents || res.parents.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">
+        No parents found. Click <b>+ Add Parent</b> to create the first one.
+      </td></tr>`;
+      return;
+    }
+
+    res.parents.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><b>${esc(p.display_name)}</b></td>
+        <td>${esc(p.mobile_number)}</td>
+        <td><span class="category-badge badge-quran">${p.student_count} student${p.student_count !== 1 ? 's' : ''}</span></td>
+        <td><span class="stat-pill pill-${p.account_status === 'active' ? 'completed' : 'unrecorded'}">${p.account_status}</span></td>
+        <td style="white-space:nowrap;">
+          <button class="btn-secondary" style="padding:4px 10px;font-size:11.5px;"
+            onclick="viewParentDetail('${p.id}','${esc(p.display_name)}')">👁 View</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--status-not_completed);">Error: ${esc(err.message)}</td></tr>`;
+  }
+}
+
+// ── Add Parent Modal ──────────────────────────────────────────────────────────
+
+window.openAddParentModal = async function() {
+  _existingParentId = null;
+  document.getElementById('addParentMobile').value = '';
+  document.getElementById('addParentName').value = '';
+  document.getElementById('addParentPassword').value = '';
+  document.getElementById('parentMobileLookupResult').innerHTML = '';
+  document.getElementById('existingParentAlert').style.display = 'none';
+  document.getElementById('addParentSubmitBtn').textContent = 'Save Parent';
+
+  // Load classes for student dropdowns
+  if (state.admin.classes.length === 0) {
+    try {
+      const r = await api('/api/admin/classes');
+      state.admin.classes = r.classes;
+    } catch (e) { /* ignore */ }
+  }
+
+  // Clear and seed one student row
+  const container = document.getElementById('studentEntriesContainer');
+  container.innerHTML = '';
+  addStudentEntry();
+
+  document.getElementById('addParentModal').style.display = 'flex';
+};
+
+window.closeAddParentModal = function() {
+  document.getElementById('addParentModal').style.display = 'none';
+};
+
+window.clearParentLookup = function() {
+  _existingParentId = null;
+  document.getElementById('parentMobileLookupResult').innerHTML = '';
+  document.getElementById('existingParentAlert').style.display = 'none';
+  document.getElementById('addParentSubmitBtn').textContent = 'Save Parent';
+
+  // Re-show password field when mobile is cleared
+  const pwGroup = document.getElementById('addParentPassword').closest('.form-group');
+  if (pwGroup) pwGroup.style.display = '';
+};
+
+window.checkParentMobile = async function() {
+  const mobile = document.getElementById('addParentMobile').value.trim();
+  const resultEl = document.getElementById('parentMobileLookupResult');
+  const alertEl  = document.getElementById('existingParentAlert');
+
+  if (!mobile) { resultEl.innerHTML = '<span style="color:orange;">Please enter a mobile number first.</span>'; return; }
+
+  try {
+    const r = await api('/api/admin/parents/check-mobile', {
+      method: 'POST',
+      body: JSON.stringify({ mobile })
+    });
+
+    if (!r.exists) {
+      resultEl.innerHTML = '<span style="color:#34d399;">✓ Mobile not yet registered — a new parent account will be created.</span>';
+      _existingParentId = null;
+      alertEl.style.display = 'none';
+      document.getElementById('addParentSubmitBtn').textContent = 'Save Parent';
+    } else if (r.same_institute && r.parent_id) {
+      _existingParentId = r.parent_id;
+      resultEl.innerHTML = `<span style="color:var(--gold-light);">⚠️ Parent already exists: <b>${esc(r.display_name)}</b></span>`;
+
+      const stuList = (r.existing_students || []).map(s =>
+        `• ${esc(s.student_name)} (${esc(s.class_name)} ${esc(s.division)}, Reg: ${esc(s.admission_number || 'N/A')})`
+      ).join('<br>');
+
+      alertEl.style.display = 'block';
+      alertEl.innerHTML = `<b>Existing parent found.</b> The students below are already linked. New students entered below will be <b>added to this existing account</b> — no duplicate account will be created.<br><br>${stuList || 'No students linked yet.'}`;
+      document.getElementById('addParentSubmitBtn').textContent = 'Add Students to Existing Parent';
+
+      // Hide password field (not needed for existing parent)
+      const pwGroup = document.getElementById('addParentPassword').closest('.form-group');
+      if (pwGroup) pwGroup.style.display = 'none';
+      document.getElementById('addParentName').value = r.display_name;
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--status-not_completed);">✗ ${esc(r.message || 'This number is already registered under another role.')}</span>`;
+      _existingParentId = null;
+    }
+  } catch (err) {
+    resultEl.innerHTML = `<span style="color:var(--status-not_completed);">Error: ${esc(err.message)}</span>`;
+  }
+};
+
+let _studentRowCount = 0;
+
+window.addStudentEntry = function() {
+  _studentRowCount++;
+  const idx = _studentRowCount;
+  const classOptions = state.admin.classes.map(c =>
+    `<option value="${c.id}">${esc(c.class_name)} ${esc(c.division)}</option>`
+  ).join('');
+
+  const container = document.getElementById('studentEntriesContainer');
+  const div = document.createElement('div');
+  div.id = `studentRow_${idx}`;
+  div.style.cssText = 'background:var(--surface-card);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px;border:1px solid var(--border-subtle);';
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span style="font-size:12px;font-weight:700;color:var(--primary-light);">Student ${idx}</span>
+      ${idx > 1 ? `<button type="button" class="btn-icon" onclick="removeStudentRow(${idx})" title="Remove this student" style="color:var(--status-not_completed);font-size:14px;">✕</button>` : ''}
+    </div>
+    <div class="form-group" style="margin-bottom:8px;">
+      <label class="form-label">Student Name *</label>
+      <input type="text" id="stuName_${idx}" class="form-input" placeholder="e.g. Muhammed Bilal">
+    </div>
+    <div class="form-group" style="margin-bottom:8px;">
+      <label class="form-label">Register / Admission Number *</label>
+      <input type="text" id="stuReg_${idx}" class="form-input" placeholder="e.g. 2026/001">
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="form-label">Class *</label>
+      <select id="stuClass_${idx}" class="form-select">
+        <option value="">— Select Class —</option>
+        ${classOptions}
+      </select>
+    </div>
+  `;
+  container.appendChild(div);
+};
+
+window.removeStudentRow = function(idx) {
+  const el = document.getElementById(`studentRow_${idx}`);
+  if (el) el.remove();
+};
+
+window.submitAddParent = async function() {
+  const mobile   = document.getElementById('addParentMobile').value.trim();
+  const name     = document.getElementById('addParentName').value.trim();
+  const password = document.getElementById('addParentPassword').value;
+
+  if (!mobile || !name) {
+    showToast('Parent mobile and name are required.', 'error');
+    return;
+  }
+
+  // Collect all visible student rows
+  const rows = document.querySelectorAll('[id^="studentRow_"]');
+  const students = [];
+  let valid = true;
+
+  rows.forEach(row => {
+    const idx = row.id.replace('studentRow_', '');
+    const stuName  = (document.getElementById(`stuName_${idx}`) || {}).value?.trim();
+    const stuReg   = (document.getElementById(`stuReg_${idx}`) || {}).value?.trim();
+    const stuClass = (document.getElementById(`stuClass_${idx}`) || {}).value;
+
+    if (!stuName || !stuReg || !stuClass) { valid = false; return; }
+    students.push({ student_name: stuName, register_number: stuReg, class_id: stuClass });
+  });
+
+  if (!valid || students.length === 0) {
+    showToast('All student fields (Name, Register Number, Class) are required for every student entry.', 'error');
+    return;
+  }
+
+  try {
+    if (_existingParentId) {
+      // Add students to existing parent
+      await api(`/api/admin/parents/${_existingParentId}/add-students`, {
+        method: 'POST',
+        body: JSON.stringify({ students })
+      });
+      showToast(`${students.length} student(s) added to existing parent successfully!`);
+    } else {
+      if (!password || password.length < 6) {
+        showToast('Initial password must be at least 6 characters.', 'error');
+        return;
+      }
+      await api('/api/admin/parents', {
+        method: 'POST',
+        body: JSON.stringify({ parent_mobile: mobile, parent_name: name, initial_password: password, students })
+      });
+      showToast(`Parent account created with ${students.length} student(s) linked!`);
+    }
+
+    closeAddParentModal();
+    loadAdminParents();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+};
+
+// ── View Parent Detail ────────────────────────────────────────────────────────
+
+window.viewParentDetail = async function(parentId, parentName) {
+  document.getElementById('viewParentModalTitle').textContent = `👨‍👧‍👦 ${parentName}`;
+  document.getElementById('viewParentDetailBody').innerHTML = '<div style="color:var(--text-dim);">Loading…</div>';
+  document.getElementById('addStudentsToExistingBtn').style.display = 'none';
+  document.getElementById('viewParentModal').style.display = 'flex';
+
+  try {
+    const res = await api(`/api/admin/parents/${parentId}`);
+    const { parent, students } = res;
+
+    const stuRows = students.length === 0
+      ? '<tr><td colspan="4" style="color:var(--text-dim);text-align:center;">No students linked.</td></tr>'
+      : students.map(s => `
+          <tr>
+            <td><b>${esc(s.student_name)}</b></td>
+            <td>${esc(s.admission_number || '—')}</td>
+            <td>${esc(s.class_name)} ${esc(s.division)}</td>
+            <td><span class="stat-pill pill-${s.account_status === 'active' ? 'completed' : 'unrecorded'}">${s.account_status}</span></td>
+          </tr>`).join('');
+
+    document.getElementById('viewParentDetailBody').innerHTML = `
+      <div style="margin-bottom:12px;">
+        <div><b>Mobile:</b> ${esc(parent.mobile_number)}</div>
+        <div><b>Status:</b> <span class="stat-pill pill-${parent.account_status === 'active' ? 'completed' : 'unrecorded'}">${parent.account_status}</span></div>
+        <div><b>Joined:</b> ${new Date(parent.created_at).toLocaleDateString()}</div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Linked Students (${students.length})</div>
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Reg. No.</th><th>Class</th><th>Status</th></tr></thead>
+          <tbody>${stuRows}</tbody>
+        </table>
+      </div>
+    `;
+
+    // Show "Add More Students" button — store parentId on it
+    const addBtn = document.getElementById('addStudentsToExistingBtn');
+    addBtn.style.display = 'inline-flex';
+    addBtn.dataset.parentId = parentId;
+    addBtn.dataset.parentName = parentName;
+  } catch (err) {
+    document.getElementById('viewParentDetailBody').innerHTML = `<div style="color:var(--status-not_completed);">Error: ${esc(err.message)}</div>`;
+  }
+};
+
+window.closeViewParentModal = function() {
+  document.getElementById('viewParentModal').style.display = 'none';
+};
+
+window.openAddStudentsToParent = async function() {
+  const btn = document.getElementById('addStudentsToExistingBtn');
+  const parentId   = btn.dataset.parentId;
+  const parentName = btn.dataset.parentName;
+
+  closeViewParentModal();
+
+  // Reuse Add Parent modal but pre-populate for existing parent
+  _existingParentId = parentId;
+  document.getElementById('addParentMobile').value = '';
+  document.getElementById('addParentName').value = parentName;
+  document.getElementById('addParentPassword').value = '';
+
+  const pwGroup = document.getElementById('addParentPassword').closest('.form-group');
+  if (pwGroup) pwGroup.style.display = 'none';
+
+  document.getElementById('parentMobileLookupResult').innerHTML =
+    `<span style="color:var(--gold-light);">Adding students to existing parent: <b>${esc(parentName)}</b></span>`;
+
+  const alertEl = document.getElementById('existingParentAlert');
+  alertEl.style.display = 'block';
+  alertEl.innerHTML = `<b>Adding students to existing parent account:</b> ${esc(parentName)}`;
+  document.getElementById('addParentSubmitBtn').textContent = 'Add Students to Existing Parent';
+
+  if (state.admin.classes.length === 0) {
+    const r = await api('/api/admin/classes');
+    state.admin.classes = r.classes;
+  }
+
+  const container = document.getElementById('studentEntriesContainer');
+  container.innerHTML = '';
+  addStudentEntry();
+
+  document.getElementById('addParentModal').style.display = 'flex';
+};
+
+// ==========================================
+// 7. MENTORS MANAGEMENT (Admin)
+// ==========================================
+
+async function loadAdminMentors() {
+  const search = (document.getElementById('mentorSearchInput') || {}).value || '';
+  const tbody = document.getElementById('adminMentorsTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Loading…</td></tr>';
+
+  try {
+    const res = await api(`/api/admin/mentors?search=${encodeURIComponent(search)}`);
+    tbody.innerHTML = '';
+
+    if (!res.mentors || res.mentors.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">
+        No mentors yet. Click <b>+ Add Mentor</b> to add one.
+      </td></tr>`;
+      return;
+    }
+
+    res.mentors.forEach(m => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><b>${esc(m.display_name)}</b></td>
+        <td>${esc(m.mobile_number)}</td>
+        <td><span style="font-size:12px;">${esc(m.assigned_classes_text || '—')}</span></td>
+        <td><span class="stat-pill pill-${m.account_status === 'active' ? 'completed' : 'unrecorded'}">${m.account_status}</span></td>
+        <td style="white-space:nowrap;">
+          <button class="btn-secondary" style="padding:4px 10px;font-size:11.5px;"
+            onclick="openEditMentorModal('${m.id}','${esc(m.display_name)}','${m.account_status}')">✏️ Edit</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--status-not_completed);">Error: ${esc(err.message)}</td></tr>`;
+  }
+}
+
+// ── Add Mentor Modal ──────────────────────────────────────────────────────────
+
+window.openAddMentorModal = async function() {
+  document.getElementById('addMentorMobile').value   = '';
+  document.getElementById('addMentorName').value     = '';
+  document.getElementById('addMentorPassword').value = '';
+
+  // Populate class checkboxes
+  const listEl = document.getElementById('mentorClassCheckboxList');
+  listEl.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">Loading…</div>';
+
+  if (state.admin.classes.length === 0) {
+    try {
+      const r = await api('/api/admin/classes');
+      state.admin.classes = r.classes;
+    } catch (e) { /* ignore */ }
+  }
+
+  listEl.innerHTML = '';
+  if (state.admin.classes.length === 0) {
+    listEl.innerHTML = '<div style="color:var(--text-dim);">No active classes found. Add classes first.</div>';
+  } else {
+    state.admin.classes.forEach(c => {
+      listEl.innerHTML += `
+        <label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;">
+          <input type="checkbox" name="addMentorClass" value="${c.id}" style="width:16px;height:16px;">
+          <span>${esc(c.class_name)} ${esc(c.division)}</span>
+        </label>
+      `;
+    });
+  }
+
+  document.getElementById('addMentorModal').style.display = 'flex';
+};
+
+window.closeAddMentorModal = function() {
+  document.getElementById('addMentorModal').style.display = 'none';
+};
+
+window.submitAddMentor = async function() {
+  const mobile   = document.getElementById('addMentorMobile').value.trim();
+  const name     = document.getElementById('addMentorName').value.trim();
+  const password = document.getElementById('addMentorPassword').value;
+
+  if (!mobile || !name) {
+    showToast('Mentor mobile and name are required.', 'error');
+    return;
+  }
+  if (!password || password.length < 6) {
+    showToast('Initial password must be at least 6 characters.', 'error');
+    return;
+  }
+
+  const checked = [...document.querySelectorAll('input[name="addMentorClass"]:checked')].map(c => c.value);
+  if (checked.length === 0) {
+    showToast('Please assign at least one class to this mentor.', 'error');
+    return;
+  }
+
+  try {
+    await api('/api/admin/mentors', {
+      method: 'POST',
+      body: JSON.stringify({ mentor_mobile: mobile, mentor_name: name, initial_password: password, class_ids: checked })
+    });
+    showToast(`Mentor "${name}" created and ${checked.length} class(es) assigned!`);
+    closeAddMentorModal();
+    loadAdminMentors();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+};
+
+// ── Edit Mentor Modal ─────────────────────────────────────────────────────────
+
+window.openEditMentorModal = async function(mentorId, mentorName, mentorStatus) {
+  document.getElementById('editMentorId').value   = mentorId;
+  document.getElementById('editMentorName').value = mentorName;
+  document.getElementById('editMentorStatus').value = mentorStatus;
+
+  const listEl = document.getElementById('editMentorClassList');
+  listEl.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">Loading…</div>';
+
+  document.getElementById('editMentorModal').style.display = 'flex';
+
+  try {
+    // Load mentor detail (to get currently assigned class IDs)
+    const [detailRes, classRes] = await Promise.all([
+      api(`/api/admin/mentors/${mentorId}`),
+      state.admin.classes.length > 0
+        ? Promise.resolve({ classes: state.admin.classes })
+        : api('/api/admin/classes')
+    ]);
+
+    if (!state.admin.classes.length) state.admin.classes = classRes.classes;
+
+    const assignedIds = new Set((detailRes.classes || []).map(c => c.id));
+
+    listEl.innerHTML = '';
+    state.admin.classes.forEach(c => {
+      listEl.innerHTML += `
+        <label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;">
+          <input type="checkbox" name="editMentorClass" value="${c.id}"
+            ${assignedIds.has(c.id) ? 'checked' : ''} style="width:16px;height:16px;">
+          <span>${esc(c.class_name)} ${esc(c.division)}</span>
+        </label>
+      `;
+    });
+  } catch (err) {
+    listEl.innerHTML = `<div style="color:var(--status-not_completed);">Error: ${esc(err.message)}</div>`;
+  }
+};
+
+window.closeEditMentorModal = function() {
+  document.getElementById('editMentorModal').style.display = 'none';
+};
+
+window.submitEditMentor = async function() {
+  const mentorId = document.getElementById('editMentorId').value;
+  const name     = document.getElementById('editMentorName').value.trim();
+  const status   = document.getElementById('editMentorStatus').value;
+  const checked  = [...document.querySelectorAll('input[name="editMentorClass"]:checked')].map(c => c.value);
+
+  if (!name) { showToast('Mentor name is required.', 'error'); return; }
+  if (checked.length === 0) { showToast('Assign at least one class.', 'error'); return; }
+
+  try {
+    await api(`/api/admin/mentors/${mentorId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ display_name: name, account_status: status, class_ids: checked })
+    });
+    showToast('Mentor updated successfully!');
+    closeEditMentorModal();
+    loadAdminMentors();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+};
+
+// ── Utility: HTML escape ──────────────────────────────────────────────────────
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Start app
 initSession();
+
+// ==========================================
+// 8. WHATSAPP SHARE
+// ==========================================
+
+window.shareOnWhatsApp = function(customText) {
+  const currentUrl = window.location.origin;
+  const text = customText || ('🕌 *SALATI — صَلَاتِي*\n*Islamic Daily Prayer & Routine Tracker*\n\n' +
+    'Track children\'s daily 5 prayers (Fajr, Dhuhr, Asr, Maghrib, Isha), Quran recitation, and Sunnah routines.\n\n' +
+    '📱 *Open the App here:*\n' + currentUrl + '\n\n' +
+    'Log in with your authorized mobile number to record and view prayer progress.');
+  const whatsappUrl = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(text);
+  window.open(whatsappUrl, '_blank');
+};
+
+window.shareParentInviteWhatsApp = function() {
+  const currentUrl = window.location.origin;
+  const text = 'Assalamu Alaikum wa Rahmatullah,\n\n' +
+    'Dear Parents,\n' +
+    'Please access the *SALATI (صَلَاتِي) Daily Prayer & Routine Tracker* to record your child\'s daily prayers.\n\n' +
+    '🌐 *App Link:*\n' + currentUrl + '\n\n' +
+    '📱 *Instructions:*\n' +
+    '1. Open the link above.\n' +
+    '2. Sign in with your registered mobile number and password.\n' +
+    '3. Select your child and log daily prayers.\n\n' +
+    'May Allah bless our children with steadfastness in Salah.';
+  window.shareOnWhatsApp(text);
+};
