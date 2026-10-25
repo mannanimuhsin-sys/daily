@@ -554,15 +554,53 @@
 
     <!-- 5. SUPER ADMINISTRATOR VIEW -->
     <section id="superAdminView" style="display: none;">
-      <div class="card">
+      <!-- Super Admin Header & Summary Bar -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h2 class="card-title" style="font-size: 1.3rem; margin: 0;">👑 Super Administrator Portal (Muhsin Mannani)</h2>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0 0;">സിസ്റ്റത്തിലെ എല്ലാ മദ്റസകളും, കുട്ടികളും, രക്ഷിതാക്കളും, പേയ്‌മെന്റുകളും ഇവിടെ കാണാം</p>
+          </div>
+          <button type="button" class="btn-primary" style="padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;" onclick="initSuperAdminDashboard(true)">
+            <span>🔄</span> Refresh Data
+          </button>
+        </div>
+
+        <!-- Metric Badges -->
+        <div style="display: flex; gap: 12px; margin-top: 14px; flex-wrap: wrap;">
+          <div class="stat-pill pill-completed" style="padding: 8px 14px; font-size: 13px;">
+            🏛️ Madrasas: <b id="saStatInstitutes" style="margin-left: 4px;">0</b>
+          </div>
+          <div class="stat-pill pill-completed" style="padding: 8px 14px; font-size: 13px;">
+            👨‍🎓 Students: <b id="saStatStudents" style="margin-left: 4px;">0</b>
+          </div>
+          <div class="stat-pill pill-completed" style="padding: 8px 14px; font-size: 13px;">
+            👨‍👩‍👧 Parents: <b id="saStatParents" style="margin-left: 4px;">0</b>
+          </div>
+          <div class="stat-pill pill-not-completed" style="padding: 8px 14px; font-size: 13px;">
+            ⏳ Pending Approvals: <b id="saStatPending" style="margin-left: 4px;">0</b>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs for Super Admin -->
+        <div style="display: flex; gap: 8px; margin-top: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; overflow-x: auto;">
+          <button type="button" id="saTabInstitutesBtn" class="btn-primary" style="padding: 6px 14px; font-size: 12px;" onclick="switchSuperAdminTab('institutes')">🏛️ Madrasas / Institutes</button>
+          <button type="button" id="saTabStudentsBtn" class="btn-secondary" style="padding: 6px 14px; font-size: 12px;" onclick="switchSuperAdminTab('students')">👨‍🎓 Registered Students</button>
+          <button type="button" id="saTabParentsBtn" class="btn-secondary" style="padding: 6px 14px; font-size: 12px;" onclick="switchSuperAdminTab('parents')">👨‍👩‍👧 Registered Parents</button>
+          <button type="button" id="saTabPaymentsBtn" class="btn-secondary" style="padding: 6px 14px; font-size: 12px;" onclick="switchSuperAdminTab('payments')">💳 Payments & Subs</button>
+        </div>
+      </div>
+
+      <!-- Tab 1: Institutes / Madrasas -->
+      <div id="saTabInstitutes" class="card">
         <div class="card-header">
-          <h3 class="card-title">👑 Institute Registrations & Approvals</h3>
+          <h3 class="card-title">🏛️ Madrasa Registrations & Approvals</h3>
         </div>
         <div class="data-table-wrapper">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Institute Name</th>
+                <th>Madrasa Name</th>
                 <th>Registration No</th>
                 <th>Admin Name</th>
                 <th>Mobile</th>
@@ -576,7 +614,53 @@
         </div>
       </div>
 
-      <div class="card">
+      <!-- Tab 2: All Registered Students -->
+      <div id="saTabStudents" class="card" style="display: none;">
+        <div class="card-header">
+          <h3 class="card-title">👨‍🎓 All Registered Students Across All Madrasas</h3>
+        </div>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Admission No</th>
+                <th>Madrasa / Institute</th>
+                <th>Class</th>
+                <th>Parent Name</th>
+                <th>Parent Mobile</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="superAdminStudentsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 3: All Registered Parents -->
+      <div id="saTabParents" class="card" style="display: none;">
+        <div class="card-header">
+          <h3 class="card-title">👨‍👩‍👧 All Registered Parents Across All Madrasas</h3>
+        </div>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Parent Name</th>
+                <th>Mobile Number</th>
+                <th>Madrasa / Institute</th>
+                <th>Linked Children</th>
+                <th>Account Status</th>
+                <th>Registered Date</th>
+              </tr>
+            </thead>
+            <tbody id="superAdminParentsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 4: Payments -->
+      <div id="saTabPayments" class="card" style="display: none;">
         <div class="card-header">
           <h3 class="card-title">💳 Subscription Payments & Verifications</h3>
         </div>

@@ -980,53 +980,156 @@ async function initStudentDashboard() {
 // 5. SUPER ADMINISTRATOR DASHBOARD
 // ==========================================
 
-async function initSuperAdminDashboard() {
+window.switchSuperAdminTab = function(tabName) {
+  const tabs = ['institutes', 'students', 'parents', 'payments'];
+  tabs.forEach(t => {
+    const el = document.getElementById('saTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    const btn = document.getElementById('saTab' + t.charAt(0).toUpperCase() + t.slice(1) + 'Btn');
+    if (el) el.style.display = t === tabName ? 'block' : 'none';
+    if (btn) {
+      btn.className = t === tabName ? 'btn-primary' : 'btn-secondary';
+    }
+  });
+};
+
+async function initSuperAdminDashboard(isManualRefresh = false) {
   try {
+    // 1. Fetch Institutes
     const res = await api('/api/super-admin/institutes');
     const tbody = document.getElementById('superAdminInstitutesBody');
-    tbody.innerHTML = '';
+    if (tbody) {
+      tbody.innerHTML = '';
+      if (!res.institutes || res.institutes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">No Madrasa registrations found.</td></tr>';
+      } else {
+        res.institutes.forEach(inst => {
+          const isApproved = inst.approval_status === 'approved';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><b>${esc(inst.name)}</b></td>
+            <td>${esc(inst.registration_number || 'N/A')}</td>
+            <td>${esc(inst.admin_name || 'N/A')}</td>
+            <td><a href="tel:${esc(inst.admin_mobile || '')}" style="color:var(--primary); font-weight:600;">${esc(inst.admin_mobile || 'N/A')}</a></td>
+            <td><span class="stat-pill pill-${isApproved ? 'completed' : 'not-completed'}">${esc(inst.approval_status)}</span></td>
+            <td><span class="category-badge badge-adhkar">${esc(inst.subscription_status)}</span></td>
+            <td>
+              ${!isApproved ? `
+                <button class="btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="approveInstitute('${inst.id}', 'approved')">Approve ✓</button>
+              ` : `
+                <button class="btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="approveInstitute('${inst.id}', 'rejected')">Revoke ✕</button>
+              `}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    }
 
-    res.institutes.forEach(inst => {
-      const isApproved = inst.approval_status === 'approved';
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><b>${inst.name}</b></td>
-        <td>${inst.registration_number || 'N/A'}</td>
-        <td>${inst.admin_name || 'N/A'}</td>
-        <td>${inst.admin_mobile || 'N/A'}</td>
-        <td><span class="stat-pill pill-${isApproved ? 'completed' : 'not-completed'}">${inst.approval_status}</span></td>
-        <td><span class="category-badge badge-adhkar">${inst.subscription_status}</span></td>
-        <td>
-          ${!isApproved ? `
-            <button class="btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="approveInstitute('${inst.id}', 'approved')">Approve</button>
-          ` : `
-            <button class="btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="approveInstitute('${inst.id}', 'rejected')">Revoke</button>
-          `}
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
+    // 2. Fetch All Students
+    let studentCount = 0;
+    try {
+      const stuRes = await api('/api/super-admin/students');
+      const stuTbody = document.getElementById('superAdminStudentsBody');
+      if (stuTbody && stuRes && stuRes.students) {
+        stuTbody.innerHTML = '';
+        studentCount = stuRes.students.length;
+        if (stuRes.students.length === 0) {
+          stuTbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">No registered students found across institutes.</td></tr>';
+        } else {
+          stuRes.students.forEach(s => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><b>${esc(s.student_name)}</b></td>
+              <td><code>${esc(s.admission_number || 'N/A')}</code></td>
+              <td>${esc(s.institute_name)}</td>
+              <td>${esc(s.class_name ? s.class_name + ' (' + s.division + ')' : 'N/A')}</td>
+              <td>${esc(s.parent_name)}</td>
+              <td>${esc(s.parent_mobile)}</td>
+              <td><span class="stat-pill pill-${s.account_status === 'active' ? 'completed' : 'not-completed'}">${esc(s.account_status)}</span></td>
+            `;
+            stuTbody.appendChild(tr);
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Students fetch error:', e.message);
+    }
 
-    // Payments
-    const payRes = await api('/api/super-admin/payments');
-    const pTbody = document.getElementById('superAdminPaymentsBody');
-    pTbody.innerHTML = '';
-    payRes.payments.forEach(p => {
-      pTbody.innerHTML += `
-        <tr>
-          <td><b>${p.institute_name}</b></td>
-          <td>${p.plan_name}</td>
-          <td>₹${p.amount}</td>
-          <td>${p.payment_reference}</td>
-          <td><span class="stat-pill pill-${p.payment_status === 'verified' ? 'completed' : 'not-completed'}">${p.payment_status}</span></td>
-          <td>
-            ${p.payment_status !== 'verified' ? `
-              <button class="btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="verifyPayment('${p.id}', 'verify')">Verify</button>
-            ` : '<span style="color: #34d399; font-weight: 700;">Verified ✓</span>'}
-          </td>
-        </tr>
-      `;
-    });
+    // 3. Fetch All Parents
+    let parentCount = 0;
+    try {
+      const parRes = await api('/api/super-admin/parents');
+      const parTbody = document.getElementById('superAdminParentsBody');
+      if (parTbody && parRes && parRes.parents) {
+        parTbody.innerHTML = '';
+        parentCount = parRes.parents.length;
+        if (parRes.parents.length === 0) {
+          parTbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No registered parents found across institutes.</td></tr>';
+        } else {
+          parRes.parents.forEach(p => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><b>${esc(p.display_name)}</b></td>
+              <td><a href="tel:${esc(p.mobile_number)}" style="color:var(--primary); font-weight:600;">${esc(p.mobile_number)}</a></td>
+              <td>${esc(p.institute_name || 'N/A')}</td>
+              <td>${esc(p.children_names || 'None')}</td>
+              <td><span class="stat-pill pill-${p.account_status === 'active' ? 'completed' : 'not-completed'}">${esc(p.account_status)}</span></td>
+              <td>${esc((p.created_at || '').substring(0, 10))}</td>
+            `;
+            parTbody.appendChild(tr);
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Parents fetch error:', e.message);
+    }
+
+    // 4. Fetch Payments
+    try {
+      const payRes = await api('/api/super-admin/payments');
+      const pTbody = document.getElementById('superAdminPaymentsBody');
+      if (pTbody && payRes && payRes.payments) {
+        pTbody.innerHTML = '';
+        if (payRes.payments.length === 0) {
+          pTbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No payment records found.</td></tr>';
+        } else {
+          payRes.payments.forEach(p => {
+            pTbody.innerHTML += `
+              <tr>
+                <td><b>${esc(p.institute_name)}</b></td>
+                <td>${esc(p.plan_name)}</td>
+                <td>₹${esc(p.amount)}</td>
+                <td>${esc(p.payment_reference)}</td>
+                <td><span class="stat-pill pill-${p.payment_status === 'verified' ? 'completed' : 'not-completed'}">${esc(p.payment_status)}</span></td>
+                <td>
+                  ${p.payment_status !== 'verified' ? `
+                    <button class="btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="verifyPayment('${p.id}', 'verify')">Verify ✓</button>
+                  ` : '<span style="color: #34d399; font-weight: 700;">Verified ✓</span>'}
+                </td>
+              </tr>
+            `;
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Payments fetch error:', e.message);
+    }
+
+    // 5. Update Stat Numbers
+    const institutes = res.institutes || [];
+    const pendingCount = institutes.filter(i => i.approval_status === 'pending').length;
+    const elInst = document.getElementById('saStatInstitutes');
+    const elStu = document.getElementById('saStatStudents');
+    const elPar = document.getElementById('saStatParents');
+    const elPen = document.getElementById('saStatPending');
+    if (elInst) elInst.textContent = institutes.length;
+    if (elStu) elStu.textContent = studentCount;
+    if (elPar) elPar.textContent = parentCount;
+    if (elPen) elPen.textContent = pendingCount;
+
+    if (isManualRefresh) {
+      showToast('Data refreshed successfully! 🔄', 'success');
+    }
   } catch (err) {
     showToast(err.message, 'error');
   }

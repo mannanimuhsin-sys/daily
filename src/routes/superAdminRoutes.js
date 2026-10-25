@@ -10,19 +10,59 @@ function handleSuperAdminRoutes(req, res, url, body) {
   // 1. GET /api/super-admin/institutes
   if (req.method === 'GET' && url.pathname === '/api/super-admin/institutes') {
     const institutes = db.prepare(`
-      SELECT i.*, u.display_name AS admin_name, u.mobile_number AS admin_mobile,
-             COUNT(DISTINCT s.id) AS student_count,
-             COUNT(DISTINCT c.id) AS class_count
+      SELECT i.*, 
+             COALESCE(u.display_name, 'N/A') AS admin_name, 
+             COALESCE(u.mobile_number, 'N/A') AS admin_mobile,
+             (SELECT COUNT(*) FROM students s WHERE s.institute_id = i.id) AS student_count,
+             (SELECT COUNT(*) FROM classes c WHERE c.institute_id = i.id) AS class_count
       FROM institutes i
-      LEFT JOIN users u ON i.id = u.institute_id AND u.role = 'institute_admin'
-      LEFT JOIN students s ON i.id = s.institute_id
-      LEFT JOIN classes c ON i.id = c.institute_id
+      LEFT JOIN users u ON (u.id = i.administrator_user_id OR (u.institute_id = i.id AND u.role = 'institute_admin'))
       GROUP BY i.id
       ORDER BY i.created_at DESC
     `).all();
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ institutes }));
+    res.end(JSON.stringify({ institutes }));
+    return true;
+  }
+
+  // 1b. GET /api/super-admin/students (All registered students across all institutes)
+  if (req.method === 'GET' && url.pathname === '/api/super-admin/students') {
+    const students = db.prepare(`
+      SELECT s.*, i.name AS institute_name, c.class_name, c.division,
+             COALESCE(p.display_name, 'Not Linked') AS parent_name, 
+             COALESCE(p.mobile_number, '-') AS parent_mobile
+      FROM students s
+      JOIN institutes i ON s.institute_id = i.id
+      LEFT JOIN classes c ON s.class_id = c.id
+      LEFT JOIN parent_student_links psl ON s.id = psl.student_id AND psl.is_active = 1
+      LEFT JOIN users p ON psl.parent_user_id = p.id
+      ORDER BY s.created_at DESC
+    `).all();
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ students }));
+    return true;
+  }
+
+  // 1c. GET /api/super-admin/parents (All registered parents across all institutes)
+  if (req.method === 'GET' && url.pathname === '/api/super-admin/parents') {
+    const parents = db.prepare(`
+      SELECT u.id, u.display_name, u.mobile_number, u.account_status, u.created_at,
+             COALESCE(i.name, 'All Institutes') AS institute_name,
+             COALESCE(GROUP_CONCAT(s.student_name, ', '), 'None') AS children_names
+      FROM users u
+      LEFT JOIN institutes i ON u.institute_id = i.id
+      LEFT JOIN parent_student_links psl ON u.id = psl.parent_user_id AND psl.is_active = 1
+      LEFT JOIN students s ON psl.student_id = s.id
+      WHERE u.role = 'parent'
+      GROUP BY u.id
+      ORDER BY u.created_at DESC
+    `).all();
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ parents }));
+    return true;
   }
 
   // 2. POST /api/super-admin/institutes/approve
