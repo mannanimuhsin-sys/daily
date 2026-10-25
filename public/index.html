@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Islamic Daily Prayer & Routine Tracker | ഇസ്‌ലാമിക് പ്രയർ ട്രാക്കർ</title>
+  <title>SALATI – My Prayer | എന്റെ നിസ്കാരം</title>
   
   <!-- Modern Typography: Google Fonts Plus Jakarta Sans, Amiri, Noto Sans Malayalam -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,48 +42,111 @@
 
     <!-- MAIN APP VIEWS -->
 
-    <!-- 1. AUTH VIEW (Login & Institute Registration) -->
-    <section id="authView" class="card">
-      <div class="card-header">
-        <h2 class="card-title">🔐 Sign In to Tracker</h2>
-        <span class="category-badge badge-quran">Secure Access</span>
+    <!-- 1. AUTH VIEW – SALATI Login Page -->
+    <section id="authView" class="salati-auth-bg">
+
+      <!-- Top right tagline -->
+      <div class="salati-tagline">Better Prayers<br>Brighter Future</div>
+
+      <!-- Logo -->
+      <div class="salati-logo-wrap">
+        <div class="salati-logo-badge">
+          <div class="salati-logo-crescent">🌙</div>
+          <div class="salati-logo-arabic">صَلَاتِي</div>
+        </div>
+        <h1 class="salati-brand-name">SALATI</h1>
+        <p class="salati-brand-sub">My Prayer &nbsp;•&nbsp; എന്റെ നിസ്കാരം</p>
       </div>
 
-      <!-- Quick Demo Login Bar -->
-      <div class="demo-accounts-bar">
-        <div class="demo-title">⚡ Quick Demo Accounts (Click to Autofill & Test):</div>
-        <div class="demo-btn-row">
-          <button type="button" class="demo-chip" onclick="quickFill('9447333444', 'Parent@123')">👨‍👧‍👦 Parent (2 Children: Bilal & Zahra)</button>
-          <button type="button" class="demo-chip" onclick="quickFill('9847111222', 'Admin@123')">🏫 Institute Admin (Usthad Ahmad)</button>
-          <button type="button" class="demo-chip" onclick="quickFill('9000111222', 'Student@123')">📖 Student (Read-Only Account)</button>
-          <button type="button" class="demo-chip" onclick="quickFill('9999900000', 'SuperAdmin@123')">👑 Super Admin (Approvals & Subscriptions)</button>
-        </div>
+      <!-- Role Tabs -->
+      <div class="salati-role-tabs">
+        <button type="button" class="salati-role-tab active" id="roleTabParent" onclick="selectLoginRole('parent')">
+          <span class="salati-tab-icon">👨‍👧‍👦</span>
+          <span>Parents</span>
+        </button>
+        <button type="button" class="salati-role-tab" id="roleTabMentor" onclick="selectLoginRole('mentor')">
+          <span class="salati-tab-icon">🎓</span>
+          <span>Mentor</span>
+        </button>
+        <button type="button" class="salati-role-tab" id="roleTabAdmin" onclick="selectLoginRole('admin')">
+          <span class="salati-tab-icon">✅</span>
+          <span>Admin</span>
+        </button>
       </div>
 
-      <!-- Login Form -->
-      <form id="loginForm">
-        <div class="form-group">
-          <label class="form-label" for="loginMobile">Authorized Mobile Number</label>
-          <input type="tel" id="loginMobile" class="form-input" placeholder="e.g. 9447333444" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="loginPassword">Password</label>
-          <input type="password" id="loginPassword" class="form-input" placeholder="Enter password" required>
-        </div>
-        <div style="display: flex; gap: 12px; margin-top: 20px;">
-          <button type="submit" class="btn-primary" style="flex: 1;">Sign In / പ്രവേശിക്കുക</button>
-          <button type="button" id="openRegisterModalBtn" class="btn-secondary">Register Institute</button>
-        </div>
-      </form>
-      <!-- WhatsApp Share Invite Banner -->
-      <div style="margin-top:20px;padding:12px 14px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.25);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-        <div>
-          <div style="font-size:13px;font-weight:700;color:#25D366;">📲 WhatsApp App Share</div>
-          <div style="font-size:11.5px;color:var(--text-muted);">Share SALATI link with parents, teachers, and study groups.</div>
-        </div>
-        <button type="button" onclick="shareOnWhatsApp()" class="btn-primary" style="background:#25D366;border-color:#25D366;font-size:12px;padding:7px 14px;border-radius:20px;">💬 Share on WhatsApp</button>
+      <!-- Login Card -->
+      <div class="salati-login-card">
+        <h2 class="salati-login-title">Login</h2>
+        <p class="salati-login-sub">Enter your mobile number and password to continue</p>
+
+        <form id="loginForm" autocomplete="off">
+          <!-- Mobile Number -->
+          <div class="salati-input-wrap">
+            <span class="salati-input-icon">📱</span>
+            <input type="tel" id="loginMobile" class="salati-input" placeholder="Mobile Number" required autocomplete="off">
+          </div>
+
+          <!-- Password -->
+          <div class="salati-input-wrap">
+            <span class="salati-input-icon">🔒</span>
+            <input type="password" id="loginPassword" class="salati-input" placeholder="Password" required autocomplete="off">
+            <button type="button" class="salati-eye-btn" onclick="togglePasswordVisibility()" id="eyeToggleBtn">👁️</button>
+          </div>
+
+          <!-- Remember me + Forgot password -->
+          <div class="salati-remember-row">
+            <label class="salati-remember-label">
+              <input type="checkbox" id="rememberMe" class="salati-checkbox">
+              <span class="salati-checkmark"></span>
+              Remember me
+            </label>
+            <a href="#" class="salati-forgot">Forgot Password?</a>
+          </div>
+
+          <!-- Login Button -->
+          <button type="submit" class="salati-login-btn" id="loginSubmitBtn">
+            Login &nbsp;→
+          </button>
+
+          <!-- Register link (small, below login btn) -->
+          <div class="salati-register-row">
+            <button type="button" class="salati-register-link" id="openRegisterModalBtn">Register Madrasa</button>
+          </div>
+
+          <!-- OR divider -->
+          <div class="salati-or-divider"><span>OR</span></div>
+
+          <!-- Muhsin Mannani Super Admin link -->
+          <div class="salati-superadmin-row">
+            <button type="button" class="salati-superadmin-link" onclick="openSuperAdminAuth()">muhsin mannani</button>
+          </div>
+        </form>
       </div>
+
+      <!-- Bottom Footer -->
+      <div class="salati-footer">
+        <span class="salati-footer-icon">✦</span>
+        FAITH &nbsp;•&nbsp; DISCIPLINE &nbsp;•&nbsp; GROWTH
+      </div>
+
+      <!-- Mosque silhouette bottom -->
+      <div class="salati-mosque-silhouette"></div>
     </section>
+
+    <!-- Super Admin Password Modal -->
+    <div id="superAdminModal" class="salati-modal-overlay" style="display:none;" onclick="closeSuperAdminModal(event)">
+      <div class="salati-modal-box">
+        <div class="salati-modal-icon">👑</div>
+        <h3 class="salati-modal-title">Super Admin Access</h3>
+        <p class="salati-modal-sub">Enter super admin password to continue</p>
+        <div class="salati-input-wrap" style="margin-top:16px;">
+          <span class="salati-input-icon">🔑</span>
+          <input type="password" id="superAdminPassword" class="salati-input" placeholder="Enter password" maxlength="10" onkeydown="if(event.key==='Enter'){verifySuperAdminPassword();}">
+        </div>
+        <button type="button" class="salati-login-btn" style="margin-top:16px;" onclick="verifySuperAdminPassword()">Access Panel</button>
+        <button type="button" class="salati-cancel-btn" onclick="document.getElementById('superAdminModal').style.display='none'">Cancel</button>
+      </div>
+    </div>
 
     <!-- 2. PARENT DASHBOARD VIEW -->
     <section id="parentView" style="display: none;">

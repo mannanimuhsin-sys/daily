@@ -83,6 +83,91 @@ window.quickFill = function(mobile, password) {
   document.getElementById('loginPassword').value = password;
 };
 
+// ============================================
+// SALATI LOGIN UI FUNCTIONS
+// ============================================
+
+// Active role for login (parent | mentor | institute_admin)
+let _activeLoginRole = 'parent';
+
+// Role tab switching
+window.selectLoginRole = function(role) {
+  _activeLoginRole = role === 'mentor' ? 'mentor' : (role === 'admin' ? 'institute_admin' : 'parent');
+
+  // Update tab UI
+  ['parent', 'mentor', 'admin'].forEach(r => {
+    const tabId = 'roleTab' + r.charAt(0).toUpperCase() + r.slice(1);
+    const el = document.getElementById(tabId);
+    if (el) el.classList.toggle('active', r === role);
+  });
+};
+
+// Password show/hide toggle
+window.togglePasswordVisibility = function() {
+  const input = document.getElementById('loginPassword');
+  const btn = document.getElementById('eyeToggleBtn');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁️';
+  }
+};
+
+// Open super admin password modal
+window.openSuperAdminAuth = function() {
+  const modal = document.getElementById('superAdminModal');
+  const passInput = document.getElementById('superAdminPassword');
+  if (modal) {
+    modal.style.display = 'flex';
+    if (passInput) { passInput.value = ''; setTimeout(() => passInput.focus(), 120); }
+  }
+};
+
+// Verify super admin password (0606)
+window.verifySuperAdminPassword = function() {
+  const passInput = document.getElementById('superAdminPassword');
+  if (!passInput) return;
+  if (passInput.value.trim() === '0606') {
+    document.getElementById('superAdminModal').style.display = 'none';
+    // Login as super_admin using the server token
+    api('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ mobile_number: '9999900000', password: 'SuperAdmin@123' })
+    }).then(res => {
+      state.token = res.token;
+      state.user = res.user;
+      localStorage.setItem('tracker_token', res.token);
+      showToast('Super Admin panel opened 👑', 'success');
+      updateHeaderUI();
+      routeByRole();
+    }).catch(() => {
+      // Fallback: direct super admin view with stored credentials
+      state.user = { role: 'super_admin', display_name: 'Muhsin Mannani' };
+      showView('superAdminView');
+      if (typeof initSuperAdminDashboard === 'function') initSuperAdminDashboard();
+      showToast('Super Admin panel opened 👑', 'success');
+    });
+  } else {
+    passInput.value = '';
+    passInput.style.borderColor = '#ef4444';
+    passInput.placeholder = 'Incorrect password!';
+    setTimeout(() => {
+      passInput.style.borderColor = '';
+      passInput.placeholder = 'Enter password';
+    }, 1800);
+    showToast('Incorrect password', 'error');
+  }
+};
+
+// Close modal when clicking overlay background
+window.closeSuperAdminModal = function(event) {
+  if (event.target === document.getElementById('superAdminModal')) {
+    document.getElementById('superAdminModal').style.display = 'none';
+  }
+};
+
 // ==========================================
 // 1. AUTHENTICATION & SESSION
 // ==========================================
