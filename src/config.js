@@ -3,9 +3,7 @@ const path = require('node:path');
 module.exports = {
   PORT: process.env.PORT || 3000,
   JWT_SECRET: process.env.JWT_SECRET || 'islamic-tracker-super-secret-key-2026-secure',
-  DB_PATH: process.env.NODE_ENV === 'production'
-    ? '/data/tracker.db'
-    : path.join(__dirname, '..', 'data', 'tracker.db'),
+  DB_PATH: process.env.DB_PATH || path.join(__dirname, '..', 'data', 'tracker.db'),
   DEFAULT_TIMEZONE: 'Asia/Kolkata',
   DEFAULT_ALLOWED_BACKDATE_DAYS: 7,
   PRAYERS: [

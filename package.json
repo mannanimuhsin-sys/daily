@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node server.js",
     "test": "node test/acceptance.test.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node src/seed.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
   },
   "keywords": ["islamic", "prayer-tracker", "madrasa", "parent-controlled"],
   "author": "Islamic Daily Tracker Team",

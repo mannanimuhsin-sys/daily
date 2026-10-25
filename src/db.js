@@ -216,6 +216,16 @@ function withTransaction(fn) {
 
 initSchema();
 
+try {
+  const userCount = db.prepare('SELECT count(*) as count FROM users').get();
+  if (userCount && userCount.count === 0) {
+    const { seed } = require('./seed');
+    seed();
+  }
+} catch (e) {
+  console.error('Auto-seed check error:', e.message);
+}
+
 module.exports = {
   db,
   initSchema,

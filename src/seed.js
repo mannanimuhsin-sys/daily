@@ -13,6 +13,8 @@ function seed() {
       DELETE FROM routine_class_assignments;
       DELETE FROM routines;
       DELETE FROM parent_student_links;
+      DELETE FROM mentor_class_assignments;
+      DELETE FROM mentors;
       DELETE FROM students;
       DELETE FROM classes;
       DELETE FROM subscription_payments;
